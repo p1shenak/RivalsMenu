@@ -1,68 +1,62 @@
 --[[
-    TERMINATOR v1.3 // RIVALS PROJECT
-    - SILENT AIM: Пули сами летят в голову (Raycast Bypass)
-    - AUTO SHOOT: Автоматическая стрельба при наведении
-    - FOV LOCK: Радиус захвата целей
-    - NO RECOIL: Полное отсутствие отдачи
+    TERMINATOR v1.4 // RIVALS PROJECT (FIXED)
+    - Убраны Drawing API (могут вызывать вылет)
+    - Silent Aim заменен на Mouse Hook
+    - Оптимизация под Xeno
 ]]
 
 local p = game:GetService("Players")
 local lp = p.LocalPlayer
+local mouse = lp:GetMouse()
 local rs = game:GetService("RunService")
 local cg = game:GetService("CoreGui")
 local uis = game:GetService("UserInputService")
-local mouse = lp:GetMouse()
-local cam = workspace.CurrentCamera
 
--- Очистка старого кода
-if cg:FindFirstChild("Terminator_V1.2") then cg.Terminator_V1.2:Destroy() end
+-- Удаляем старое если есть
+for _, v in pairs(cg:GetChildren()) do
+    if v.Name == "Terminator_V1_2" then v:Destroy() end
+end
 
 local sg = Instance.new("ScreenGui", cg)
-sg.Name = "Terminator_V1.2"
+sg.Name = "Terminator_V1_2"
 
--- [ ИНТЕРФЕЙС ]
+-- [ ГЛАВНОЕ ОКНО ]
 local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 320, 0, 400)
-main.Position = UDim2.new(0.5, -160, 0.5, -200)
-main.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+main.Size = UDim2.new(0, 280, 0, 350)
+main.Position = UDim2.new(0.5, -140, 0.5, -175)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 main.Active = true
 main.Draggable = true
 Instance.new("UICorner", main)
-Instance.new("UIStroke", main).Color = Color3.fromRGB(0, 255, 255)
 
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 45)
-title.Text = "TERMINATOR v1.2 // RIVALS"; title.TextColor3 = Color3.new(1,1,1)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "TERMINATOR v1.2 FIX"; title.TextColor3 = Color3.new(0, 1, 1)
 title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
 
 local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -20, 1, -60)
-scroll.Position = UDim2.new(0, 10, 0, 50)
-scroll.BackgroundTransparency = 1; scroll.CanvasSize = UDim2.new(0,0,1.3,0)
+scroll.Size = UDim2.new(1, -20, 1, -50)
+scroll.Position = UDim2.new(0, 10, 0, 45)
+scroll.BackgroundTransparency = 1; scroll.CanvasSize = UDim2.new(0,0,1.5,0)
 Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 5)
 
--- [ ПЕРЕМЕННЫЕ ]
-_G.SilentAim = false
-_G.AutoShoot = false
-_G.NoRecoil = false
-local FOV_RADIUS = 150
-
--- [ КРУГ FOV ]
-local fov_circle = Drawing.new("Circle")
-fov_circle.Thickness = 1; fov_circle.Radius = FOV_RADIUS; fov_circle.Color = Color3.new(0, 255, 255); fov_circle.Visible = false
+-- [ НАСТРОЙКИ ]
+_G.Silent = false
+_G.Trigger = false
+_G.ESP = false
 
 -- [ ПОИСК ЦЕЛИ ]
 local function getTarget()
     local target = nil
-    local dist = FOV_RADIUS
-    for _, player in pairs(p:GetPlayers()) do
-        if player ~= lp and player.Team ~= lp.Team and player.Character and player.Character:FindFirstChild("Head") then
-            local pos, onScreen = cam:WorldToViewportPoint(player.Character.Head.Position)
+    local dist = 300 -- Радиус захвата (вместо круга)
+    for _, pl in pairs(p:GetPlayers()) do
+        if pl ~= lp and pl.Team ~= lp.Team and pl.Character and pl.Character:FindFirstChild("Head") then
+            local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(pl.Character.Head.Position)
             if onScreen then
                 local mag = (Vector2.new(pos.X, pos.Y) - uis:GetMouseLocation()).Magnitude
                 if mag < dist then
                     dist = mag
-                    target = player
+                    target = pl
                 end
             end
         end
@@ -71,75 +65,61 @@ local function getTarget()
 end
 
 -- [ КНОПКИ ]
-local function addBtn(name, callback)
+local function addBtn(txt, cb)
     local b = Instance.new("TextButton", scroll)
-    b.Size = UDim2.new(1, 0, 0, 40); b.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    b.Text = name; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.Gotham
+    b.Size = UDim2.new(1, 0, 0, 40); b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.Gotham
     Instance.new("UICorner", b)
     local act = false
     b.MouseButton1Click:Connect(function()
         act = not act
-        b.BackgroundColor3 = act and Color3.fromRGB(0, 150, 150) or Color3.fromRGB(25, 25, 30)
-        callback(act)
+        b.BackgroundColor3 = act and Color3.fromRGB(0, 100, 100) or Color3.fromRGB(30, 30, 35)
+        cb(act)
     end)
 end
 
 --------------------------------------------------
--- ФУНКЦИОНАЛ
+-- ФУНКЦИИ
 --------------------------------------------------
 
--- 1. SILENT AIM (Пули летят в голову)
-addBtn("SILENT AIM (HEAD)", function(v)
-    _G.SilentAim = v
-    fov_circle.Visible = v
+addBtn("SILENT AIM", function(v) _G.Silent = v end)
+addBtn("AUTO SHOOT", function(v) _G.Trigger = v end)
+addBtn("ESP BOX", function(v) 
+    _G.ESP = v 
+    task.spawn(function()
+        while _G.ESP do
+            for _, pl in pairs(p:GetPlayers()) do
+                if pl ~= lp and pl.Character and not pl.Character:FindFirstChild("Highlight") then
+                    Instance.new("Highlight", pl.Character).FillColor = Color3.new(1,0,0)
+                end
+            end
+            task.wait(2)
+        end
+    end)
 end)
 
--- 2. AUTO SHOOT (Сам стреляет)
-addBtn("AUTO SHOOT (TRIGGER)", function(v)
-    _G.AutoShoot = v
-end)
-
--- 3. NO RECOIL
-addBtn("NO RECOIL", function(v)
-    _G.NoRecoil = v
-end)
-
--- [ ГЛАВНЫЙ BYPASS ]
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local args = {...}
-    local method = getnamecallmethod()
-    
-    if _G.SilentAim and method == "Raycast" and not checkcaller() then
+-- [ ХУК ДЛЯ СТРЕЛЬБЫ ]
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", function(self, idx)
+    if self == mouse and (idx == "Hit" or idx == "Target") and _G.Silent and not checkcaller() then
         local t = getTarget()
         if t then
-            -- Подменяем направление луча на голову цели
-            args[2] = (t.Character.Head.Position - args[1]).Unit * 1000
-            return oldNamecall(self, unpack(args))
+            return (idx == "Hit" and t.Character.Head.CFrame or t.Character.Head)
         end
     end
-    return oldNamecall(self, ...)
+    return oldIndex(self, idx)
 end)
 
--- [ АВТО-ВЫСТРЕЛ И ОБНОВЛЕНИЕ ]
+-- [ ЦИКЛ АВТО-ВЫСТРЕЛА ]
 rs.RenderStepped:Connect(function()
-    fov_circle.Position = uis:GetMouseLocation()
-    
-    local target = getTarget()
-    
-    -- Логика AutoShoot
-    if _G.AutoShoot and target then
-        -- Виртуальный клик (Xeno поддерживает mouse1click)
-        if typeof(mouse1click) == "function" then
-            mouse1click()
+    if _G.Trigger then
+        local t = getTarget()
+        if t then
+            -- Выстрел
+            keypress(0x01) -- Левая кнопка мыши (Virtual Key Code)
+            task.wait(0.05)
+            keyrelease(0x01)
         end
-    end
-    
-    -- Убираем отдачу (Rivals NoRecoil)
-    if _G.NoRecoil then
-        pcall(function()
-            lp.PlayerGui.MainGui.Internal.Recoil.Value = 0
-        end)
     end
 end)
 
@@ -148,4 +128,4 @@ uis.InputBegan:Connect(function(k, m)
     if not m and k.KeyCode == Enum.KeyCode.L then main.Visible = not main.Visible end
 end)
 
-print("TERMINATOR v1.2 ULTIMATE LOADED")
+print("TERMINATOR v1.2 FIX - LOADED")
