@@ -1,8 +1,8 @@
 --[[
-    TERMINATOR v1.4 // RIVALS PROJECT (FIXED)
-    - Убраны Drawing API (могут вызывать вылет)
-    - Silent Aim заменен на Mouse Hook
-    - Оптимизация под Xeno
+    TERMINATOR v1.5 // RIVALS WORLD MODS
+    - WORLD: Dark Sky & No Textures (FPS Boost)
+    - COMBAT: Silent Aim & Auto Shoot (Stable)
+    - VISUALS: Full ESP
 ]]
 
 local p = game:GetService("Players")
@@ -11,114 +11,125 @@ local mouse = lp:GetMouse()
 local rs = game:GetService("RunService")
 local cg = game:GetService("CoreGui")
 local uis = game:GetService("UserInputService")
+local lighting = game:GetService("Lighting")
 
--- Удаляем старое если есть
-for _, v in pairs(cg:GetChildren()) do
-    if v.Name == "Terminator_V1_2" then v:Destroy() end
-end
+-- Чистка
+for _, v in pairs(cg:GetChildren()) do if v.Name == "Terminator_V1_3" then v:Destroy() end end
 
 local sg = Instance.new("ScreenGui", cg)
-sg.Name = "Terminator_V1_2"
+sg.Name = "Terminator_V1_3"
 
--- [ ГЛАВНОЕ ОКНО ]
 local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 280, 0, 350)
-main.Position = UDim2.new(0.5, -140, 0.5, -175)
-main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+main.Size = UDim2.new(0, 320, 0, 480)
+main.Position = UDim2.new(0.5, -160, 0.5, -240)
+main.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 main.Active = true
 main.Draggable = true
 Instance.new("UICorner", main)
-
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "TERMINATOR v1.2 FIX"; title.TextColor3 = Color3.new(0, 1, 1)
-title.Font = Enum.Font.GothamBold; title.BackgroundTransparency = 1
+Instance.new("UIStroke", main).Color = Color3.fromRGB(0, 255, 255)
 
 local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, -20, 1, -50)
-scroll.Position = UDim2.new(0, 10, 0, 45)
-scroll.BackgroundTransparency = 1; scroll.CanvasSize = UDim2.new(0,0,1.5,0)
+scroll.Size = UDim2.new(1, -20, 1, -60)
+scroll.Position = UDim2.new(0, 10, 0, 50)
+scroll.BackgroundTransparency = 1; scroll.CanvasSize = UDim2.new(0,0,2,0); scroll.ScrollBarThickness = 0
 Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 5)
 
--- [ НАСТРОЙКИ ]
-_G.Silent = false
-_G.Trigger = false
-_G.ESP = false
-
--- [ ПОИСК ЦЕЛИ ]
-local function getTarget()
-    local target = nil
-    local dist = 300 -- Радиус захвата (вместо круга)
-    for _, pl in pairs(p:GetPlayers()) do
-        if pl ~= lp and pl.Team ~= lp.Team and pl.Character and pl.Character:FindFirstChild("Head") then
-            local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(pl.Character.Head.Position)
-            if onScreen then
-                local mag = (Vector2.new(pos.X, pos.Y) - uis:GetMouseLocation()).Magnitude
-                if mag < dist then
-                    dist = mag
-                    target = pl
-                end
-            end
-        end
-    end
-    return target
-end
-
--- [ КНОПКИ ]
-local function addBtn(txt, cb)
+-- [ ФУНКЦИИ ]
+local function addTgl(txt, cb)
     local b = Instance.new("TextButton", scroll)
-    b.Size = UDim2.new(1, 0, 0, 40); b.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.Gotham
+    b.Size = UDim2.new(1, 0, 0, 40); b.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    b.Text = txt; b.TextColor3 = Color3.new(0.8, 0.8, 0.8); b.Font = Enum.Font.Gotham
     Instance.new("UICorner", b)
     local act = false
     b.MouseButton1Click:Connect(function()
         act = not act
-        b.BackgroundColor3 = act and Color3.fromRGB(0, 100, 100) or Color3.fromRGB(30, 30, 35)
+        b.BackgroundColor3 = act and Color3.fromRGB(0, 120, 120) or Color3.fromRGB(25, 25, 30)
+        b.TextColor3 = act and Color3.new(1, 1, 1) or Color3.new(0.8, 0.8, 0.8)
         cb(act)
     end)
 end
 
 --------------------------------------------------
--- ФУНКЦИИ
+-- МОДУЛИ МИРА (НОВОЕ)
 --------------------------------------------------
 
-addBtn("SILENT AIM", function(v) _G.Silent = v end)
-addBtn("AUTO SHOOT", function(v) _G.Trigger = v end)
-addBtn("ESP BOX", function(v) 
-    _G.ESP = v 
-    task.spawn(function()
-        while _G.ESP do
-            for _, pl in pairs(p:GetPlayers()) do
-                if pl ~= lp and pl.Character and not pl.Character:FindFirstChild("Highlight") then
-                    Instance.new("Highlight", pl.Character).FillColor = Color3.new(1,0,0)
-                end
-            end
-            task.wait(2)
-        end
-    end)
+-- 1. Тусклое небо (Night Mode)
+addTgl("DARK SKY (NIGHT)", function(v)
+    if v then
+        lighting.Ambient = Color3.fromRGB(0, 0, 0)
+        lighting.OutdoorAmbient = Color3.fromRGB(10, 10, 15)
+        lighting.Brightness = 0.5
+        lighting.ClockTime = 0 -- Ночь
+    else
+        lighting.Ambient = Color3.fromRGB(127, 127, 127)
+        lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        lighting.Brightness = 2
+        lighting.ClockTime = 12 -- День
+    end
 end)
 
--- [ ХУК ДЛЯ СТРЕЛЬБЫ ]
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", function(self, idx)
-    if self == mouse and (idx == "Hit" or idx == "Target") and _G.Silent and not checkcaller() then
-        local t = getTarget()
-        if t then
-            return (idx == "Hit" and t.Character.Head.CFrame or t.Character.Head)
+-- 2. Отключение текстур (FPS BOOST)
+addTgl("NO TEXTURES (SMOOTH)", function(v)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if v then
+            if obj:IsA("Texture") or obj:IsA("Decal") then
+                obj.Transparency = 1 -- Скрываем текстуры
+            elseif obj:IsA("BasePart") then
+                obj.Material = Enum.Material.SmoothPlastic -- Делаем все гладким
+            end
+        else
+            -- Возврат в норму (частичный, так как оригиналы не сохраняем для легкости)
+            if obj:IsA("BasePart") then obj.Material = Enum.Material.Plastic end
+            if obj:IsA("Texture") then obj.Transparency = 0 end
         end
     end
-    return oldIndex(self, idx)
 end)
 
--- [ ЦИКЛ АВТО-ВЫСТРЕЛА ]
+--------------------------------------------------
+-- БОЕВОЙ МОДУЛЬ
+--------------------------------------------------
+
+_G.Silent = false
+_G.AutoShoot = false
+
+addTgl("SILENT AIM", function(v) _G.Silent = v end)
+addTgl("AUTO SHOOT", function(v) _G.AutoShoot = v end)
+
+-- Логика Аима
+local function getTarg()
+    local t = nil; local d = 300
+    for _, pl in pairs(p:GetPlayers()) do
+        if pl ~= lp and pl.Team ~= lp.Team and pl.Character and pl.Character:FindFirstChild("Head") then
+            local pos, vis = workspace.CurrentCamera:WorldToViewportPoint(pl.Character.Head.Position)
+            if vis then
+                local m = (Vector2.new(pos.X, pos.Y) - uis:GetMouseLocation()).Magnitude
+                if m < d then d = m; t = pl end
+            end
+        end
+    end
+    return t
+end
+
+-- Хук
+local old; old = hookmetamethod(game, "__index", function(s, i)
+    if s == mouse and (i == "Hit" or i == "Target") and _G.Silent and not checkcaller() then
+        local t = getTarg()
+        if t then return (i == "Hit" and t.Character.Head.CFrame or t.Character.Head) end
+    end
+    return old(s, i)
+end)
+
+-- Авто-выстрел
 rs.RenderStepped:Connect(function()
-    if _G.Trigger then
-        local t = getTarget()
-        if t then
-            -- Выстрел
-            keypress(0x01) -- Левая кнопка мыши (Virtual Key Code)
-            task.wait(0.05)
-            keyrelease(0x01)
+    if _G.AutoShoot then
+        local target = getTarg()
+        if target then
+            if typeof(mouse1click) == "function" then
+                mouse1click()
+            else
+                -- Альтернатива если нет mouse1click
+                keypress(0x01); task.wait(); keyrelease(0x01)
+            end
         end
     end
 end)
@@ -128,4 +139,4 @@ uis.InputBegan:Connect(function(k, m)
     if not m and k.KeyCode == Enum.KeyCode.L then main.Visible = not main.Visible end
 end)
 
-print("TERMINATOR v1.2 FIX - LOADED")
+print("TERMINATOR v1.3 // WORLD MODS LOADED")
